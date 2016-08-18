@@ -1,0 +1,13 @@
+docker_geonames_api_path: /tmp/docker_geonames_api
+
+api_url: "https://{{domain_name}}/api"
+
+apidoc_conf:
+  name: "EHA Geoname Lookup API"
+  version: "0.0.1"
+  description: >
+    This is an API for looking up geonames from geonames.org based on a free-text search.
+    Geonames.org data is licenced under the CC Attribution 3.0 license https://creativecommons.org/licenses/by/3.0/
+  title: "EHA Geoname API"
+  url: "{{api_url}}"
+  sampleUrl: "{{api_url}}"

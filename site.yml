@@ -1,0 +1,107 @@
+---
+- hosts: targets
+  become: yes
+  become_user: root
+  vars:
+    infrastructure_root: "../.."
+    export: false
+    domain_name: "geoname-lookup.eha.io"
+    webroot: "/var/www"
+    ssl_directory: "/etc/letsencrypt/live/{{domain_name}}"
+    keypath: "{{ssl_directory}}/privkey.pem"
+    certpath: "{{ssl_directory}}/cert.pem"
+    chainpath: "{{ssl_directory}}/chain.pem"
+    fullchainpath: "{{ssl_directory}}/fullchain.pem"
+    acme_tiny_challenges_directory: "/var/www/.well-known/acme-challenge"
+    main_server_port: 3000
+    apache_extra_parameters: |
+      ProxyPreserveHost On
+      ProxyPassMatch ^/(?!\.well-known)(.*) http://localhost:{{ main_server_port }}/$1
+      ProxyPassReverse ^/(?!\.well-known)(.*) http://localhost:{{ main_server_port }}/$1
+  roles:
+    - name: init
+      tags: init
+    - name: kamaln7.swapfile
+      swapfile_size: 16GB
+      swapfile_location: "/swapfile"
+      tags: swap
+    - name: angstwad.docker_ubuntu
+      tags: docker
+    - name: elasticsearch-load
+      tags: elasticsearch-load
+    - name: lookup-api
+      tags: lookup-api
+    - name: thefinn93.letsencrypt
+      letsencrypt_cert_domains:
+        - "{{domain_name}}"
+      letsencrypt_webroot_path: "{{webroot}}"
+      letsencrypt_email: "tech@ecohealthalliance.org"
+      tags: letsencrypt
+    - name: geerlingguy.apache
+      apache_mods_enabled:
+        - rewrite.load
+        - ssl.load
+        - proxy.load
+        - proxy_http.load
+        - alias.load
+        - proxy_wstunnel.load
+      apache_mods_disabled: []
+      apache_vhosts_ssl:
+        - servername: "{{domain_name}}"
+          documentroot: "{{webroot}}"
+          certificate_file: "{{certpath}}"
+          certificate_key_file: "{{keypath}}"
+          certificate_chain_file: "{{chainpath}}"
+          extra_parameters: "{{apache_extra_parameters}}"
+      apache_vhosts:
+        - servername: "{{domain_name}}"
+          documentroot: "{{webroot}}"
+          extra_parameters: "{{apache_extra_parameters}}"
+      tags: apache
+    - name: export-containers
+      tags: export
+      when: export
+  post_tasks:
+    - name: Import log tail
+      command: docker logs --tail 50 importer-c
+      register: import_log
+      tags:
+        - checks
+        - check-import
+    - debug: var=import_log
+      tags:
+        - checks
+        - check-import
+    - name: Check indices
+      uri:
+        url: http://localhost:9200/_all
+      tags:
+        - checks
+        - check-indices
+      register: indices
+      ignore_errors: yes
+    - debug: var=indices
+      tags:
+        - checks
+        - check-indices
+    - name: Check query
+      uri:
+        url: http://localhost:9200/geonames/geoname/_search
+        method: POST
+        body: "{{test_query | to_json}}"
+      ignore_errors: yes
+      vars:
+        test_query:
+          query:
+            match_all: {}
+          size: 1
+      tags:
+        - checks
+        - check-queries
+      register: query_result
+    - debug: var=query_result
+      tags:
+        - checks
+        - check-queries
+  vars_files:
+    - secure.yml

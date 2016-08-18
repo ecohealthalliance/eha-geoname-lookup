@@ -1,0 +1,24 @@
+---
+- name: Copy geonames-api source code
+  synchronize: src="geonames-api/" dest="{{ docker_geonames_api_path }}"
+
+- name: Create apidoc config
+  copy: content="{{apidoc_conf | to_json}}" dest="{{ docker_geonames_api_path }}/apidoc.json" force=yes
+
+- name: Build geonames-api image
+  docker_image:
+    path: "{{ docker_geonames_api_path }}"
+    name: geonames-api
+    force: true
+
+- name: Start geonames-api
+  docker_container:
+    name: geonames-api-c
+    image: geonames-api
+    state: started
+    restart: true
+    env:
+      ELASTICSEARCH_HOST: "{{ansible_default_ipv4.address}}:9200"
+    ports:
+      - "{{main_server_port}}:80"
+

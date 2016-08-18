@@ -1,0 +1,16 @@
+{
+  "scripts": {
+    "start": "node main.js"
+  },
+  "dependencies": {
+    "geonames-importer": "^0.0.6",
+    "elasticsearch": "^2.4.3",
+    "elasticsearch-streams": "0.0.6"
+  },
+  "devDependencies": {
+    "expect.js": "^0.3.1",
+    "jshint": "^2.5.6",
+    "mocha": "^2.0.1",
+    "should": "^4.1.0"
+  }
+}

@@ -1,0 +1,6 @@
+- src: angstwad.docker_ubuntu
+  version: "v1.1.8"
+- src: kamaln7.swapfile
+- src: thefinn93.letsencrypt
+- src: geerlingguy.apache
+  version: "1.7.2"

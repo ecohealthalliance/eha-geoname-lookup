@@ -1,0 +1,37 @@
+---
+- name: Pull elasticsearch image
+  docker_image:
+    name: elasticsearch
+
+- name: Start elasticsearch container
+  docker_container:
+    name: elasticsearch-c
+    image: elasticsearch
+    state: started
+    restart: true
+    ports:
+      - "9200:9200"
+    # volumes:
+    #   "{{elasticsearch_config_path}}:/usr/share/elasticsearch/config"
+
+- name: Copy importer source code
+  synchronize: src="importer/" dest="{{docker_importer_path}}"
+
+- name: Build importer image
+  docker_image:
+    path: "{{docker_importer_path}}"
+    name: importer
+    force: true
+
+- name: Start importer
+  docker_container:
+    name: importer-c
+    image: importer
+    state: started
+    detach: false
+    restart: true
+    env:
+      ELASTICSEARCH_HOST: "{{ansible_default_ipv4.address}}:9200"
+  register: import_result
+
+#- debug: var=import_result

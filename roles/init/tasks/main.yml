@@ -1,0 +1,17 @@
+---
+- name: Install common packages from apt
+  apt: pkg={{item}} state=installed update_cache=yes
+  with_items:
+    - git
+    - python-pip
+    - python-dev
+    - curl
+- name: Install global python modules
+  pip: name={{item}}
+  with_items:
+    - awscli
+    - virtualenv
+- name: Create aws crendentials directory
+  file: path=~/.aws state=directory
+- name: Create aws credentials
+  template: src=config.j2 dest=~/.aws/config

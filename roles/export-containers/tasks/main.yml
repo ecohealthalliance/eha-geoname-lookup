@@ -1,0 +1,6 @@
+---
+- name: Tar and zip elasticsearch container
+  shell: "docker export elasticsearch-c | gzip > /tmp/elasticsearch.tar.gz"
+
+- name: Save image on s3
+  command: "aws s3 cp /tmp/elasticsearch.tar.gz s3://bsve-integration/elasticsearch.tar.gz"
