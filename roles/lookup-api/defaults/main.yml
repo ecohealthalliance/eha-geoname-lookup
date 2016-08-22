@@ -11,3 +11,17 @@ apidoc_conf:
   title: "EHA Geoname API"
   url: "{{api_url}}"
   sampleUrl: "{{api_url}}"
+
+test_lookups:
+  - name: "Seattle"
+    id: "5809844"
+  - name: "Washington"
+    id: "5815135"
+  - name: "United States"
+    id: "6252001"
+  - name: "Riverside, OR"
+    id: "7176033"
+  - name: "Riverside, Vermont"
+    id: "5240320"
+  - name: "Ghana"
+    id: "2300660"

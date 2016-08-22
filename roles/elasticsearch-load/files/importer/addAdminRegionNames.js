@@ -1,4 +1,5 @@
 var elasticsearch = require('elasticsearch');
+console.assert(process.env.ELASTICSEARCH_HOST);
 module.exports = function(){
   var esClient = new elasticsearch.Client({
       host: process.env.ELASTICSEARCH_HOST
@@ -21,7 +22,7 @@ module.exports = function(){
           console.log(hit.fields.name[0]);
           countries[hit.fields.countryCode[0]] = hit.fields;
         } else if(hit.fields.featureCode[0] === 'ADM1'){
-          console.log("    " + hit.fields.name[0]);
+          //console.log("    " + hit.fields.name[0]);
           admin1s[hit.fields.countryCode[0] + '.' + hit.fields.admin1Code[0]] = hit.fields;
         } else if(hit.fields.featureCode[0] === 'ADM2'){
           admin2s[hit.fields.countryCode[0] + '.' + hit.fields.admin1Code[0] + '.' + hit.fields.admin2Code[0]] = hit.fields;
@@ -39,7 +40,7 @@ module.exports = function(){
       }
     });
   }
-  function addCountryStateLabels(done){
+  function addCountryStateLabels(addLabelsDone){
     var sofar = 0;
     esClient.search({
       index: 'geonames',
@@ -74,29 +75,48 @@ module.exports = function(){
           });
         }
       });
-      esClient.bulk({
-        index: "geonames",
-        type: "geoname",
-        refresh: false,
-        body: actions
-      }, function (err, resp) {
-        if(err) {
-          console.log(err);
-        } else {
-          if(Math.random() < 0.01) {
-            console.log(sofar + " / " + response.hits.total);
+      function doBulkUpdate(retries, done) {
+        if(actions.length === 0) {
+          console.log("No actions for hits:");
+          console.log(JSON.stringify(response.hits.hits, 0, 2));
+          return done();
+        }
+        esClient.bulk({
+          index: "geonames",
+          type: "geoname",
+          refresh: false,
+          body: actions
+        }, function (err, resp) {
+          if(err) {
+            console.log("Bulk update error:");
+            console.log(JSON.stringify(err, 0, 2));
+            if(retries > 0) {
+              console.log("retrying...");
+              doBulkUpdate(retries - 1);
+            } else {
+              console.log("Bulk update failed for actions:");
+              console.log(JSON.stringify(actions, 0, 2));
+              done();
+            }
+          } else {
+            if(Math.random() < 0.001) {
+              console.log(sofar + " / " + response.hits.total);
+            }
+            done();
           }
+        });
+      }
+      doBulkUpdate(1, function(){
+        sofar += response.hits.hits.length;
+        if (response.hits.total !== sofar) {
+          esClient.scroll({
+            scrollId: response._scroll_id,
+            scroll: '30s'
+          }, getMoreUntilDone);
+        } else {
+          addLabelsDone();
         }
       });
-      sofar += response.hits.hits.length;
-      if (response.hits.total !== sofar) {
-        esClient.scroll({
-          scrollId: response._scroll_id,
-          scroll: '30s'
-        }, getMoreUntilDone);
-      } else {
-        done();
-      }
     });
   }
   buildCountryStateMappings(function(){

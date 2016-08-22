@@ -24,15 +24,17 @@ app.use express.static(path.join(__dirname, 'public'))
 @apiParam {String} q A free-text place name
 @apiParam {Number} maxRows=10 The maximum number of results to return
 @apiParam {Boolean} explain=false Return debug information about how the results were scored
-maxRows
 ###
-app.get '/api/lookup', (req, res, next)->
+app.all '/api/lookup', (req, res, next)->
   res.header "Access-Control-Allow-Origin", "*"
   #res.header "Access-Control-Allow-Headers", "X-Requested-With"
-  unless req.query.q
-    return req.status(400).send
+  q = req.query.q or req.body.q
+  explain = req.query.explain or req.body.explain
+  maxRows = req.query.maxRows or req.body.maxRows
+  unless q
+    return res.status(400).send
       error: "A query is requred"
-  qTokens = req.query.q.split(',').map((s)-> s.trim())
+  qTokens = q.split(',').map((s)-> s.trim())
   mainName = qTokens[0]
   # If there is no comma, the region name is the full query string incase a region
   # was included without punctuation.
@@ -40,13 +42,13 @@ app.get '/api/lookup', (req, res, next)->
   client.search
     index: "geonames"
     type: "geoname"
-    explain: req.query?.explain || false
+    explain: explain == "true" || false
     body:
-      size: req.query?.maxRows || 10
+      size: maxRows || 10
       query:
         bool:
           # Don't give a bonus mulitple for matching more of the following conditions.
-          disable_coord: true
+          # disable_coord: true
           should: [
             # Rank high population places more highly
             range:
@@ -64,11 +66,13 @@ app.get '/api/lookup', (req, res, next)->
             # Favor city/state/country names over things like geographic features.
             term:
               featureClass:
-                value: "P"
+                _name: "P"
+                value: "p"
           ,
             term:
               featureClass:
-                value: "A"
+                _name: "A"
+                value: "a"
           ,
             # Only use stuff after first comma to search containing region names
             multi_match:
@@ -81,12 +85,19 @@ app.get '/api/lookup', (req, res, next)->
               queries: [
                 match:
                   name:
+                    _name: "Main name"
                     query: mainName
                     fuzziness: "AUTO"
               ,
-                match:
-                  alternateNames:
-                    query: mainName
+                # A constant score is used to prevent many similar alternate names
+                # from inflating the score through a high term frequency.
+                constant_score:
+                  filter:
+                    match:
+                      alternateNames:
+                        _name: "Alt name"
+                        boost: 0.5
+                        query: mainName
               ]
           ]
   .then (result)->

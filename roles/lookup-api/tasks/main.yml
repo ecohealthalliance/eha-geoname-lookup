@@ -22,3 +22,26 @@
     ports:
       - "{{main_server_port}}:80"
 
+- name: Wait for API
+  uri: 
+    url: "http://{{ansible_host}}/api/lookup?q=test"
+  register: result
+  until: "result.status == 200"
+  retries: 5
+  delay: 10
+  tags: api-tests
+- name: Run API tests
+  uri: 
+    url: "http://{{ansible_host}}/api/lookup"
+    body:
+      q: "{{item.name}}"
+    body_format: json
+  with_items: "{{test_lookups}}"
+  tags: api-tests
+  register: test_results
+- debug: var=test_results
+  tags: api-tests
+- name: Check test results
+  assert: that="test_results.results[item.0].json.hits.0._source.id == item.1.id"
+  with_indexed_items: "{{test_lookups}}"
+  tags: api-tests

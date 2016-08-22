@@ -23,6 +23,14 @@
     name: importer
     force: true
 
+- name: Check geonames index
+  uri:
+    url: http://localhost:9200/geonames/_count
+  register: geonames_count
+  until: "geonames_count.json.count >= 0"
+  retries: 5
+  delay: 10
+
 - name: Start importer
   docker_container:
     name: importer-c
@@ -32,6 +40,7 @@
     restart: true
     env:
       ELASTICSEARCH_HOST: "{{ansible_default_ipv4.address}}:9200"
+  when: "geonames_count.json.count == 0"
   register: import_result
 
 #- debug: var=import_result

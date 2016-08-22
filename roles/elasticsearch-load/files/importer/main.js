@@ -1,7 +1,6 @@
 var addAdminRegionNames = require('./addAdminRegionNames');
 var Importer = require('geonames-importer');
 var Downloader = require('geonames-importer/downloader');
-//var process = require('process');
 console.assert(process.env.ELASTICSEARCH_HOST);
 var importer = new Importer({
   index: 'geonames',
@@ -15,10 +14,16 @@ var importer = new Importer({
       } catch(e) {
         item.population = 0;
       }
+      try {
+        item.latitude = parseFloat(item.latitude);
+        item.longitude = parseFloat(item.longitude);
+      } catch(e) {
+        console.log("Error parsing lat/lng");
+      }
       if(item.alternateNames && item.alternateNames.length > 0) {
         item.alternateNames = item.alternateNames.split(',');
       } else {
-        item.alternatenames = [];
+        item.alternateNames = [];
       }
       return item;
     }
@@ -34,4 +39,3 @@ importer
   addAdminRegionNames();
 })
 .done();
-
