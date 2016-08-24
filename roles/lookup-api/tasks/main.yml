@@ -39,8 +39,8 @@
   with_items: "{{test_lookups}}"
   tags: api-tests
   register: test_results
-- debug: var=test_results
-  tags: api-tests
+# - debug: var=test_results
+#   tags: api-tests
 - name: Check test results
   assert: that="test_results.results[item.0].json.hits.0._source.id == item.1.id"
   with_indexed_items: "{{test_lookups}}"

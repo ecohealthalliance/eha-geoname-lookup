@@ -17,9 +17,8 @@ app.use express.static(path.join(__dirname, 'public'))
 
 ###
 @apiName Geoname Lookup
-@apiGroup Lookup
+@apiGroup Geonames
 @api {get} /lookup Lookup a geoname
-@apiName Lookup
 
 @apiParam {String} q A free-text place name
 @apiParam {Number} maxRows=10 The maximum number of results to return
@@ -43,6 +42,20 @@ app.all '/api/lookup', (req, res, next)->
     index: "geonames"
     type: "geoname"
     explain: explain == "true" || false
+    _source: [
+      "id"
+      "population"
+      "featureClass"
+      "featureCode"
+      "name"
+      "population"
+      "latitude"
+      "longitude"
+      "admin1Name"
+      "admin2Name"
+      "countryName"
+      "alternateNames"
+    ]
     body:
       size: maxRows || 10
       query:
@@ -102,6 +115,32 @@ app.all '/api/lookup', (req, res, next)->
           ]
   .then (result)->
     res.json result.hits
+  .catch next
+
+###
+@apiName Return Geonames By ID
+@apiGroup Geonames
+@api {get} /geonames Return Geonames By ID
+
+@apiParam {String[]} ids
+###
+app.all '/api/geonames', (req, res, next)->
+  res.header "Access-Control-Allow-Origin", "*"
+  #res.header "Access-Control-Allow-Headers", "X-Requested-With"
+  ids = req.query.ids or req.body.ids
+  unless Array.isArray(ids)
+    ids = ids.split(",")
+  unless ids?.length > 0
+    return res.status(400).send
+      error: "ids are required"
+  client.mget
+    index: "geonames"
+    type: "geoname"
+    body:
+      ids: ids
+  .then (result)->
+    res.json
+      docs: result.docs.map (d)-> d._source
   .catch next
 
 ipaddr = process.env.IP or "0.0.0.0"
