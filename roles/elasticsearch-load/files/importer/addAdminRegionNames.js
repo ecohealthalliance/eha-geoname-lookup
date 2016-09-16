@@ -18,7 +18,7 @@ module.exports = function(){
       fields: ['name', 'admin1Code', 'admin2Code', 'countryCode', 'featureCode']
     }, function getMoreUntilDone(error, response) {
       response.hits.hits.forEach(function (hit) {
-        if(hit.fields.featureCode[0] === 'PCLI'){
+        if(hit.fields.featureCode[0] === 'PCLI' || hit.fields.featureCode[0] === 'PCLS'){
           console.log(hit.fields.name[0]);
           countries[hit.fields.countryCode[0]] = hit.fields;
         } else if(hit.fields.featureCode[0] === 'ADM1'){
