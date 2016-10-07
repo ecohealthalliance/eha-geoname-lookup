@@ -1,7 +1,7 @@
 ---
 - name: Pull elasticsearch image
   docker_image:
-    name: elasticsearch
+    name: "elasticsearch:2.4.1"
 
 - name: "Ensure elasticsearch data directory exists at: {{elasticsearch_data_path}}"
   file: path="{{elasticsearch_data_path}}" state=directory
