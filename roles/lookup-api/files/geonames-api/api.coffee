@@ -101,6 +101,11 @@ app.all '/api/lookup', (req, res, next)->
                     _name: "Main name"
                     query: mainName
                     fuzziness: "AUTO"
+                    prefix_length: 1
+              ,
+                prefix:
+                  name: mainName
+                  boost: 0.5
               ,
                 # A constant score is used to prevent many similar alternate names
                 # from inflating the score through a high term frequency.

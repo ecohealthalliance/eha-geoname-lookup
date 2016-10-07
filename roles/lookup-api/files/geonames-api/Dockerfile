@@ -4,5 +4,4 @@ RUN mkdir app
 ADD . app
 WORKDIR app
 RUN npm install
-RUN npm run docs
-CMD npm run start
+CMD npm run docs && npm run start

@@ -3,6 +3,9 @@
   docker_image:
     name: elasticsearch
 
+- name: "Ensure elasticsearch data directory exists at: {{elasticsearch_data_path}}"
+  file: path="{{elasticsearch_data_path}}" state=directory
+
 - name: Start elasticsearch container
   docker_container:
     name: elasticsearch-c
@@ -11,8 +14,9 @@
     restart: true
     ports:
       - "9200:9200"
-    # volumes:
-    #   "{{elasticsearch_config_path}}:/usr/share/elasticsearch/config"
+    volumes:
+      - "{{elasticsearch_data_path}}:/usr/share/elasticsearch/data"
+      #- "{{elasticsearch_config_path}}:/usr/share/elasticsearch/config"
 
 - name: Copy importer source code
   synchronize: src="importer/" dest="{{docker_importer_path}}"
@@ -23,13 +27,24 @@
     name: importer
     force: true
 
-- name: Check geonames index
+- name: Wait for elasticsearch
+  uri:
+    url: http://localhost:9200/
+  register: elasticsearch_ping
+  until: "elasticsearch_ping.get('json')"
+  retries: 5
+  delay: 10
+
+- name: Ensure geonames index exists
+  ignore_errors: yes
+  uri:
+    url: http://localhost:9200/geonames
+    method: PUT
+
+- name: Count items in geonames index
   uri:
     url: http://localhost:9200/geonames/_count
   register: geonames_count
-  until: "geonames_count.json.count >= 0"
-  retries: 5
-  delay: 10
 
 - name: Start importer
   docker_container:

@@ -3,7 +3,7 @@
   become: yes
   become_user: root
   vars:
-    infrastructure_root: "../.."
+    elasticsearch_data_path: "/mnt/elasticsearch/data"
     export: false
     domain_name: "geoname-lookup.eha.io"
     webroot: "/var/www"
@@ -26,6 +26,8 @@
       swapfile_location: "/swapfile"
       tags: swap
     - name: angstwad.docker_ubuntu
+      # There is a version comparison bug on versions >= 1.10.0
+      pip_version_docker_py: "1.9.0"
       tags: docker
     - name: elasticsearch-load
       tags: elasticsearch-load
@@ -68,7 +70,7 @@
       tags:
         - checks
         - check-import
-    - debug: var=import_log
+    - debug: var=import_log.stdout
       tags:
         - checks
         - check-import

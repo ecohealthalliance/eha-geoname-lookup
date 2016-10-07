@@ -5,9 +5,7 @@ module.exports = function(){
       host: process.env.ELASTICSEARCH_HOST
   });
 
-  var admin1s = {};
-  var admin2s = {};
-  var countries = {};
+  var adminDivisions = {};
 
   function buildCountryStateMappings(done){
     var sofar = 0;
@@ -18,15 +16,23 @@ module.exports = function(){
       fields: ['name', 'admin1Code', 'admin2Code', 'countryCode', 'featureCode']
     }, function getMoreUntilDone(error, response) {
       response.hits.hits.forEach(function (hit) {
+        var key;
         if(hit.fields.featureCode[0] === 'PCLI' || hit.fields.featureCode[0] === 'PCLS'){
           console.log(hit.fields.name[0]);
-          countries[hit.fields.countryCode[0]] = hit.fields;
+          key = hit.fields.countryCode[0];
         } else if(hit.fields.featureCode[0] === 'ADM1'){
-          //console.log("    " + hit.fields.name[0]);
-          admin1s[hit.fields.countryCode[0] + '.' + hit.fields.admin1Code[0]] = hit.fields;
+          key = hit.fields.countryCode[0] + '.' + hit.fields.admin1Code[0];
         } else if(hit.fields.featureCode[0] === 'ADM2'){
-          admin2s[hit.fields.countryCode[0] + '.' + hit.fields.admin1Code[0] + '.' + hit.fields.admin2Code[0]] = hit.fields;
+          key = hit.fields.countryCode[0] + '.' + hit.fields.admin1Code[0] + '.' + hit.fields.admin2Code[0];
+        } else {
+          return;
         }
+        if(key in adminDivisions) {
+          console.log("    WARNING: Multiple entries for key: " + key);
+          console.log(JSON.stringify(adminDivisions[key], 0, 2));
+          console.log(JSON.stringify(hit.fields, 0, 2));
+        }
+        adminDivisions[key] = hit.fields;
       });
       sofar += response.hits.hits.length;
     
@@ -51,9 +57,9 @@ module.exports = function(){
     }, function getMoreUntilDone(error, response) {
       var actions = [];
       response.hits.hits.forEach(function (hit) {
-        var country = countries[hit.fields.countryCode[0]];
-        var admin1 = admin1s[hit.fields.countryCode[0] + '.' + hit.fields.admin1Code[0]];
-        var admin2 = admin2s[hit.fields.countryCode[0] + '.' + hit.fields.admin1Code[0] + '.' + hit.fields.admin2Code[0]];
+        var country = adminDivisions[hit.fields.countryCode[0]];
+        var admin1 = adminDivisions[hit.fields.countryCode[0] + '.' + hit.fields.admin1Code[0]];
+        var admin2 = adminDivisions[hit.fields.countryCode[0] + '.' + hit.fields.admin1Code[0] + '.' + hit.fields.admin2Code[0]];
         var doc = {};
         if(country) {
           doc.countryName = country.name[0];
@@ -77,8 +83,8 @@ module.exports = function(){
       });
       function doBulkUpdate(retries, done) {
         if(actions.length === 0) {
-          console.log("No actions for hits:");
-          console.log(JSON.stringify(response.hits.hits, 0, 2));
+          // console.log("No actions for hits:");
+          // console.log(JSON.stringify(response.hits.hits, 0, 2));
           return done();
         }
         esClient.bulk({
