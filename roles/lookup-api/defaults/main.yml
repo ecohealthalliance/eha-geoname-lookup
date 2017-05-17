@@ -4,7 +4,7 @@ api_url: "https://{{domain_name}}/api"
 
 apidoc_conf:
   name: "EHA Geoname Lookup API"
-  version: "0.0.1"
+  version: "0.0.2"
   description: >
     This is an API for looking up geonames from geonames.org based on a free-text search.
     Geonames.org data is licenced under the CC Attribution 3.0 license https://creativecommons.org/licenses/by/3.0/
@@ -19,9 +19,13 @@ test_lookups:
     id: "5815135"
   - name: "United States"
     id: "6252001"
-  - name: "Riverside, OR"
-    id: "7176033"
-  - name: "Riverside, Vermont"
+  - name: "springfield, IL"
+    id: "4250542"
+  - name: "Riverside, Chittenden County, Vermont"
     id: "5240320"
   - name: "Ghana"
     id: "2300660"
+  - name: "Lake Superior, Ontario"
+    id: "6048728"
+  - name: "China"
+    id: "1814991"

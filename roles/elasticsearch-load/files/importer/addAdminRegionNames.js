@@ -12,30 +12,35 @@ module.exports = function(){
     esClient.search({
       index: 'geonames',
       scroll: '30s',
-      search_type: 'scan',
-      fields: ['name', 'admin1Code', 'admin2Code', 'countryCode', 'featureCode']
+      size: 50,
+      _source: ['name', 'admin1Code', 'admin2Code', 'countryCode', 'featureCode']
     }, function getMoreUntilDone(error, response) {
+      if(error || !response.hits.hits) {
+        console.log(error);
+        console.log(response);
+        throw error;
+      }
       response.hits.hits.forEach(function (hit) {
         var key;
-        if(hit.fields.featureCode[0] === 'PCLI' || hit.fields.featureCode[0] === 'PCLS'){
-          console.log(hit.fields.name[0]);
-          key = hit.fields.countryCode[0];
-        } else if(hit.fields.featureCode[0] === 'ADM1'){
-          key = hit.fields.countryCode[0] + '.' + hit.fields.admin1Code[0];
-        } else if(hit.fields.featureCode[0] === 'ADM2'){
-          key = hit.fields.countryCode[0] + '.' + hit.fields.admin1Code[0] + '.' + hit.fields.admin2Code[0];
+        var hitDoc = hit._source;
+        if(hitDoc.featureCode === 'PCLI' || hitDoc.featureCode === 'PCLS'){
+          console.log(hitDoc.name);
+          key = hitDoc.countryCode;
+        } else if(hitDoc.featureCode === 'ADM1'){
+          key = hitDoc.countryCode + '.' + hitDoc.admin1Code;
+        } else if(hitDoc.featureCode === 'ADM2'){
+          key = hitDoc.countryCode + '.' + hitDoc.admin1Code + '.' + hitDoc.admin2Code;
         } else {
           return;
         }
         if(key in adminDivisions) {
           console.log("    WARNING: Multiple entries for key: " + key);
           console.log(JSON.stringify(adminDivisions[key], 0, 2));
-          console.log(JSON.stringify(hit.fields, 0, 2));
+          console.log(JSON.stringify(hitDoc, 0, 2));
         }
-        adminDivisions[key] = hit.fields;
+        adminDivisions[key] = hitDoc;
       });
       sofar += response.hits.hits.length;
-    
       if (response.hits.total !== sofar) {
         esClient.scroll({
           scrollId: response._scroll_id,
@@ -50,25 +55,28 @@ module.exports = function(){
     var sofar = 0;
     esClient.search({
       index: 'geonames',
-      // Set to 30 seconds because we are calling right back
       scroll: '30s',
-      search_type: 'scan',
-      fields: ['name', 'admin1Code', 'admin2Code', 'countryCode']
+      size: 50,
+      _source: ['name', 'admin1Code', 'admin2Code', 'countryCode']
     }, function getMoreUntilDone(error, response) {
+      if(error) {
+        throw error;
+      }
       var actions = [];
       response.hits.hits.forEach(function (hit) {
-        var country = adminDivisions[hit.fields.countryCode[0]];
-        var admin1 = adminDivisions[hit.fields.countryCode[0] + '.' + hit.fields.admin1Code[0]];
-        var admin2 = adminDivisions[hit.fields.countryCode[0] + '.' + hit.fields.admin1Code[0] + '.' + hit.fields.admin2Code[0]];
+        var hitDoc = hit._source;
+        var country = adminDivisions[hitDoc.countryCode];
+        var admin1 = adminDivisions[hitDoc.countryCode + '.' + hitDoc.admin1Code];
+        var admin2 = adminDivisions[hitDoc.countryCode + '.' + hitDoc.admin1Code + '.' + hitDoc.admin2Code];
         var doc = {};
         if(country) {
-          doc.countryName = country.name[0];
+          doc.countryName = country.name;
         }
         if(admin1) {
-          doc.admin1Name = admin1.name[0];
+          doc.admin1Name = admin1.name;
         }
         if(admin2) {
-          doc.admin2Name = admin2.name[0];
+          doc.admin2Name = admin2.name;
         }
         if(Object.keys(doc).length > 0) {
           actions.push({
@@ -105,7 +113,7 @@ module.exports = function(){
               done();
             }
           } else {
-            if(Math.random() < 0.001) {
+            if(Math.random() < 0.0001) {
               console.log(sofar + " / " + response.hits.total);
             }
             done();

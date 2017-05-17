@@ -6,6 +6,7 @@
     - python-pip
     - python-dev
     - curl
+    - zip
 - name: Install global python modules
   pip: name={{item}}
   with_items:

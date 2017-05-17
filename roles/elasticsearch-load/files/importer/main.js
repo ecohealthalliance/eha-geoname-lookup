@@ -1,9 +1,9 @@
 var addAdminRegionNames = require('./addAdminRegionNames');
 var Importer = require('geonames-importer');
-var Downloader = require('geonames-importer/downloader');
 console.assert(process.env.ELASTICSEARCH_HOST);
 var importer = new Importer({
   index: 'geonames',
+  filename: '/allCountries.txt',
   elasticsearch: {
     host: process.env.ELASTICSEARCH_HOST
   },
@@ -25,15 +25,18 @@ var importer = new Importer({
       } else {
         item.alternateNames = [];
       }
+      var rawNames = {};
+      rawNames[item.name] = 1;
+      item.alternateNames.forEach(function(name){
+        rawNames[name] = 1;
+      });
+      item.rawNames = Object.keys(rawNames);
       return item;
     }
   ]
 });
-var downloader = new Downloader({
-  tmp: '/tmp'
-});
 importer
-.import(downloader.country())
+.import()
 .then(function () {
   console.log('finished loading geonames');
   addAdminRegionNames();

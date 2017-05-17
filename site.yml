@@ -4,7 +4,6 @@
   become_user: root
   vars:
     elasticsearch_data_path: "/mnt/elasticsearch/data"
-    export: false
     domain_name: "geoname-lookup.eha.io"
     webroot: "/var/www"
     ssl_directory: "/etc/letsencrypt/live/{{domain_name}}"
@@ -18,6 +17,13 @@
       ProxyPreserveHost On
       ProxyPassMatch ^/(?!\.well-known)(.*) http://localhost:{{ main_server_port }}/$1
       ProxyPassReverse ^/(?!\.well-known)(.*) http://localhost:{{ main_server_port }}/$1
+    apache_vhosts_ssl_default:
+      - servername: "{{domain_name}}"
+        documentroot: "{{webroot}}"
+        certificate_file: "{{certpath}}"
+        certificate_key_file: "{{keypath}}"
+        certificate_chain_file: "{{chainpath}}"
+        extra_parameters: "{{apache_extra_parameters}}"
   roles:
     - name: init
       tags: init
@@ -26,8 +32,10 @@
       swapfile_location: "/swapfile"
       tags: swap
     - name: angstwad.docker_ubuntu
-      # There is a version comparison bug on versions >= 1.10.0
-      pip_version_docker_py: "1.9.0"
+      # Due to this bug the version need to be pinned.
+      # https://github.com/ansible/ansible/issues/20492
+      pip_version_docker_compose: '1.9.0'
+      pip_version_docker_py: '1.10.6'
       tags: docker
     - name: elasticsearch-load
       tags: elasticsearch-load
@@ -48,13 +56,8 @@
         - alias.load
         - proxy_wstunnel.load
       apache_mods_disabled: []
-      apache_vhosts_ssl:
-        - servername: "{{domain_name}}"
-          documentroot: "{{webroot}}"
-          certificate_file: "{{certpath}}"
-          certificate_key_file: "{{keypath}}"
-          certificate_chain_file: "{{chainpath}}"
-          extra_parameters: "{{apache_extra_parameters}}"
+      apache_remove_default_vhost: true
+      apache_vhosts_ssl: "{{ apache_vhosts_ssl_override | default(apache_vhosts_ssl_default) }}"
       apache_vhosts:
         - servername: "{{domain_name}}"
           documentroot: "{{webroot}}"
@@ -62,7 +65,7 @@
       tags: apache
     - name: export-containers
       tags: export
-      when: export
+      when: "{{ export | default(true) }}"
   post_tasks:
     - name: Import log tail
       command: docker logs --tail 50 importer-c
