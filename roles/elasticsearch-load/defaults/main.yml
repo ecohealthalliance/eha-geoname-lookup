@@ -1,1 +1,3 @@
 docker_importer_path: /tmp/docker_importer
+elasticsearch_load_from_backup: false
+elasticsearch_clear_data: false

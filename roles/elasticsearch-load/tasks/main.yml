@@ -3,8 +3,20 @@
   docker_image:
     name: "elasticsearch:2.4.1"
 
+- name: "Remove old elasticsearch data directory"
+  file: path="{{elasticsearch_data_path}}" state=absent
+  when: "elasticsearch_clear_data"
+
 - name: "Ensure elasticsearch data directory exists at: {{elasticsearch_data_path}}"
   file: path="{{elasticsearch_data_path}}" state=directory
+
+- name: "Download elasticsearch backup"
+  command: "aws s3 cp s3://bsve-integration/elasticsearch-data.tar.gz /tmp/elasticsearch-data.tar.gz"
+  when: "elasticsearch_load_from_backup"
+
+- name: "Restore elasticsearch backup"
+  shell: "tar -xvzf /tmp/elasticsearch-data.tar.gz -C {{elasticsearch_data_path}}"
+  when: "elasticsearch_load_from_backup"
 
 - name: Start elasticsearch container
   docker_container:
@@ -16,23 +28,13 @@
       - "9200:9200"
     volumes:
       - "{{elasticsearch_data_path}}:/usr/share/elasticsearch/data"
-      #- "{{elasticsearch_config_path}}:/usr/share/elasticsearch/config"
-
-- name: Copy importer source code
-  synchronize: src="importer/" dest="{{docker_importer_path}}"
-
-- name: Build importer image
-  docker_image:
-    path: "{{docker_importer_path}}"
-    name: importer
-    force: true
 
 - name: Wait for elasticsearch
   uri:
     url: http://localhost:9200/
   register: elasticsearch_ping
   until: "elasticsearch_ping.get('json')"
-  retries: 5
+  retries: 6
   delay: 10
 
 - name: Ensure geonames index exists
@@ -40,11 +42,59 @@
   uri:
     url: http://localhost:9200/geonames
     method: PUT
+    body:
+      settings:
+        index:
+          analysis:
+            analyzer:
+              analyzer_keyword:
+                tokenizer: "keyword"
+                filter: "lowercase"
+      mappings:
+        geoname:
+          properties:
+            rawNames:
+              type: "string"
+              analyzer: "analyzer_keyword"
+              # Make it so having many names does not dimish the score given
+              # to a matching raw name.
+              norms: 
+                enabled: false
+    body_format: "json"
 
 - name: Count items in geonames index
   uri:
     url: http://localhost:9200/geonames/_count
   register: geonames_count
+
+- name: Copy importer source code
+  synchronize: src="importer/" dest="{{docker_importer_path}}"
+  when: "geonames_count is undefined or geonames_count.json.count == 0"
+  tags: rerun-importer
+
+- name: Download geonames data
+  get_url:
+    url: http://download.geonames.org/export/dump/allCountries.zip
+    dest: "{{ docker_importer_path }}/allCountries.zip"
+  when: "geonames_count is undefined or geonames_count.json.count == 0"
+  tags: rerun-importer
+
+- name: Extract geonames zip
+  unarchive:
+    src: "{{ docker_importer_path }}/allCountries.zip"
+    dest: "{{ docker_importer_path }}"
+    copy: no
+    creates: "{{ docker_importer_path }}/allCountries.txt"
+  when: "geonames_count is undefined or geonames_count.json.count == 0"
+  tags: rerun-importer
+
+- name: Build importer image
+  docker_image:
+    path: "{{docker_importer_path}}"
+    name: importer
+    force: true
+  when: "geonames_count is undefined or geonames_count.json.count == 0"
+  tags: rerun-importer
 
 - name: Start importer
   docker_container:
@@ -55,7 +105,6 @@
     restart: true
     env:
       ELASTICSEARCH_HOST: "{{ansible_default_ipv4.address}}:9200"
-  when: "geonames_count.json.count == 0"
+  when: "geonames_count is undefined or geonames_count.json.count == 0"
   register: import_result
-
-#- debug: var=import_result
+  tags: rerun-importer

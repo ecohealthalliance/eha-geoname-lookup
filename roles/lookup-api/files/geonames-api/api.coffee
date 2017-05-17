@@ -18,7 +18,7 @@ app.use express.static(path.join(__dirname, 'public'))
 ###
 @apiName Geoname Lookup
 @apiGroup Geonames
-@api {get} /lookup Lookup a geoname
+@api {get} /lookup Search for Geonames
 
 @apiParam {String} q A free-text place name
 @apiParam {Number} maxRows=10 The maximum number of results to return
@@ -35,9 +35,7 @@ app.all '/api/lookup', (req, res, next)->
       error: "A query is requred"
   qTokens = q.split(',').map((s)-> s.trim())
   mainName = qTokens[0]
-  # If there is no comma, the region name is the full query string incase a region
-  # was included without punctuation.
-  regionName = if qTokens.length > 1 then qTokens.slice(1).join(" ") else qTokens[0]
+  regionNames = qTokens.slice(1)
   client.search
     index: "geonames"
     type: "geoname"
@@ -57,7 +55,7 @@ app.all '/api/lookup', (req, res, next)->
       "alternateNames"
     ]
     body:
-      size: maxRows || 10
+      size: maxRows || 20
       query:
         bool:
           # Don't give a bonus mulitple for matching more of the following conditions.
@@ -66,36 +64,35 @@ app.all '/api/lookup', (req, res, next)->
             # Rank high population places more highly
             range:
               population:
+                boost: 0.5
                 gt: 0
           ,
             range:
               population:
+                boost: 0.5
                 gte: 10000
           ,
             range:
               population:
                 gte: 1000000
           ,
-            # Favor city/state/country names over things like geographic features.
-            term:
-              featureClass:
-                _name: "P"
-                value: "p"
-          ,
-            term:
-              featureClass:
-                _name: "A"
-                value: "a"
-          ,
-            # Only use stuff after first comma to search containing region names
-            multi_match:
-              query: regionName
-              fields: ["countryCode", "admin1Code", "countryName", "admin1Name", "admin2Name"]
-          ,
             # Match the name and alternatename fields. If there is a match in both, only
             # the highest scoring match is counted when computing relevance.
             dis_max:
               queries: [
+                if regionNames.length == 0 then {
+                  multi_match:
+                    boost: 1.1
+                    query: mainName
+                    fields: [
+                      "countryCode"
+                      "admin1Code"
+                      "countryName"
+                      "admin1Name"
+                      "admin2Name"
+                    ]
+                }
+              ,
                 match:
                   name:
                     _name: "Main name"
@@ -103,21 +100,26 @@ app.all '/api/lookup', (req, res, next)->
                     fuzziness: "AUTO"
                     prefix_length: 1
               ,
+                # Use prefix matching for type-ahead functionality.
                 prefix:
-                  name: mainName
-                  boost: 0.5
+                  rawNames: mainName
               ,
-                # A constant score is used to prevent many similar alternate names
-                # from inflating the score through a high term frequency.
-                constant_score:
-                  filter:
-                    match:
-                      alternateNames:
-                        _name: "Alt name"
-                        boost: 0.5
-                        query: mainName
+                match:
+                  rawNames:
+                    boost: 1.5
+                    query: mainName
+              ].filter (x)->x
+          ].concat(regionNames.map (regionName)->
+            multi_match:
+              query: regionName
+              fields: [
+                "countryCode"
+                "admin1Code"
+                "countryName"
+                "admin1Name"
+                "admin2Name"
               ]
-          ]
+          )
   .then (result)->
     res.json result.hits
   .catch next
@@ -131,7 +133,6 @@ app.all '/api/lookup', (req, res, next)->
 ###
 app.all '/api/geonames', (req, res, next)->
   res.header "Access-Control-Allow-Origin", "*"
-  #res.header "Access-Control-Allow-Headers", "X-Requested-With"
   ids = req.query.ids or req.body.ids
   unless Array.isArray(ids)
     ids = ids.split(",")

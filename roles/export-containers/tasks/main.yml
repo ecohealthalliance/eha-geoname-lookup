@@ -1,8 +1,10 @@
 ---
 - name: Tar and zip elasticsearch data
   shell: "tar -zcvf /tmp/elasticsearch-data.tar.gz {{elasticsearch_data_path}}"
+
 - command: "aws s3 cp /tmp/elasticsearch-data.tar.gz s3://bsve-integration/elasticsearch-data.tar.gz"
 
 - name: Tar and zip geonames-api container
   shell: "docker save geonames-api | gzip > /tmp/geonames-api.tar.gz"
+
 - command: "aws s3 cp /tmp/geonames-api.tar.gz s3://bsve-integration/geonames-api.tar.gz"
