@@ -23,6 +23,7 @@ app.use express.static(path.join(__dirname, 'public'))
 @apiParam {String} q A free-text place name
 @apiParam {Number} maxRows=10 The maximum number of results to return
 @apiParam {Boolean} explain=false Return debug information about how the results were scored
+@apiParam {String[]} fields The geoname fields to return
 ###
 app.all '/api/lookup', (req, res, next)->
   res.header "Access-Control-Allow-Origin", "*"
@@ -30,6 +31,9 @@ app.all '/api/lookup', (req, res, next)->
   q = req.query.q or req.body.q
   explain = req.query.explain or req.body.explain
   maxRows = req.query.maxRows or req.body.maxRows
+  fields = req.query.fields or req.body.fields or []
+  unless Array.isArray(fields)
+    fields = fields.split(",")
   unless q
     return res.status(400).send
       error: "A query is requred"
@@ -40,20 +44,7 @@ app.all '/api/lookup', (req, res, next)->
     index: "geonames"
     type: "geoname"
     explain: explain == "true" || false
-    _source: [
-      "id"
-      "population"
-      "featureClass"
-      "featureCode"
-      "name"
-      "population"
-      "latitude"
-      "longitude"
-      "admin1Name"
-      "admin2Name"
-      "countryName"
-      "alternateNames"
-    ]
+    _source: fields
     body:
       size: maxRows || 20
       query:

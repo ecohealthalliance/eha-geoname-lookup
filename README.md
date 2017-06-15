@@ -7,7 +7,6 @@ Search result rankings take into account the following features:
  * If the search specifies a containing administrative division like "Riverside, Oregon"
    geonames within the administrative division are promoted.
  * Geonames with a greater population are promoted.
- * P and A feature classes (cities, states and countries) are promoted.
 
 ### How to deploy Geoname Lookup API
 
