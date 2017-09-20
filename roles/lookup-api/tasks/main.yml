@@ -21,6 +21,10 @@
       ELASTICSEARCH_HOST: "{{ansible_default_ipv4.address}}:9200"
     ports:
       - "{{main_server_port}}:80"
+    log_driver: 'json-file'
+    log_options:
+      max-size: '100m'
+      max-file: '5'
 
 - name: Wait for API
   uri: 
