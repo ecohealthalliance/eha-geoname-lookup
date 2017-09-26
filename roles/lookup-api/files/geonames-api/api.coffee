@@ -27,7 +27,6 @@ app.use express.static(path.join(__dirname, 'public'))
 ###
 app.all '/api/lookup', (req, res, next)->
   res.header "Access-Control-Allow-Origin", "*"
-  #res.header "Access-Control-Allow-Headers", "X-Requested-With"
   q = req.query.q or req.body.q
   explain = req.query.explain or req.body.explain
   maxRows = req.query.maxRows or req.body.maxRows
@@ -138,6 +137,38 @@ app.all '/api/geonames', (req, res, next)->
   .then (result)->
     res.json
       docs: result.docs.map (d)-> d._source
+  .catch next
+
+###
+@apiName Geoname Query
+@apiGroup Geonames
+@api {get} /query Query geonames using the given criteria
+
+@apiParam {String} featureCode
+@apiParam {Number} limit=1000
+###
+app.all '/api/query', (req, res, next)->
+  res.header "Access-Control-Allow-Origin", "*"
+  featureCode = req.query.featureCode or req.body.featureCode
+  limit = req.query.limit or req.body.limit
+  unless featureCode
+    return res.status(400).send
+      error: "A featureCode is requred"
+  client.search
+    index: "geonames"
+    type: "geoname"
+    _source: []
+    body:
+      size: limit || 1000
+      query:
+        bool:
+          must: [
+            match:
+              featureCode:
+                query: featureCode
+          ]
+  .then (result)->
+    res.json result.hits
   .catch next
 
 ipaddr = process.env.IP or "0.0.0.0"
