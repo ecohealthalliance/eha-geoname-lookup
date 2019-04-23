@@ -38,6 +38,7 @@ app.all '/api/lookup', (req, res, next)->
       error: "A query is requred"
   qTokens = q.split(',').map((s)-> s.trim())
   mainName = qTokens[0]
+  mainNameTokens = mainName.split(' ').filter((s)->s)
   regionNames = qTokens.slice(1)
   client.search
     index: "geonames"
@@ -70,19 +71,6 @@ app.all '/api/lookup', (req, res, next)->
             # the highest scoring match is counted when computing relevance.
             dis_max:
               queries: [
-                if regionNames.length == 0 then {
-                  multi_match:
-                    boost: 1.1
-                    query: mainName
-                    fields: [
-                      "countryCode"
-                      "admin1Code"
-                      "countryName"
-                      "admin1Name"
-                      "admin2Name"
-                    ]
-                }
-              ,
                 match:
                   name:
                     _name: "Main name"
@@ -93,22 +81,34 @@ app.all '/api/lookup', (req, res, next)->
                 # Use prefix matching for type-ahead functionality.
                 prefix:
                   rawNames: mainName
-              ,
+              ].concat(mainNameTokens.map((token, idx)->
                 match:
                   rawNames:
                     boost: 1.5
-                    query: mainName
-              ].filter (x)->x
-          ].concat(regionNames.map (regionName)->
-            multi_match:
-              query: regionName
-              fields: [
-                "countryCode"
-                "admin1Code"
-                "countryName"
-                "admin1Name"
-                "admin2Name"
-              ]
+                    query: mainNameTokens.slice(0, idx + 1).join(" ")
+              ))
+          ].concat(
+            if regionNames.length == 0 and mainNameTokens.length > 0 then [
+              multi_match:
+                query: mainNameTokens.slice(1).join(" ")
+                fields: [
+                  "countryCode"
+                  "admin1Code"
+                  "countryName"
+                  "admin1Name"
+                  "admin2Name"
+                ]
+            ] else regionNames.map((regionName)->
+              multi_match:
+                query: regionName
+                fields: [
+                  "countryCode"
+                  "admin1Code"
+                  "countryName"
+                  "admin1Name"
+                  "admin2Name"
+                ]
+            )
           )
   .then (result)->
     res.json result.hits

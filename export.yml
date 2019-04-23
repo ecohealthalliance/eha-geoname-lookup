@@ -1,0 +1,6 @@
+---
+- hosts: build-instance
+  become: yes
+  become_user: root
+  roles:
+    - name: export-containers

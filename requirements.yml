@@ -1,5 +1,4 @@
 - src: angstwad.docker_ubuntu
-  version: "v2.0"
 - src: kamaln7.swapfile
 - src: thefinn93.letsencrypt
 - src: geerlingguy.apache

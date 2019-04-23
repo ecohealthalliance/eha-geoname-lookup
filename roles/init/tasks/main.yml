@@ -3,8 +3,8 @@
   apt: pkg={{item}} state=installed update_cache=yes
   with_items:
     - git
-    - python-pip
-    - python-dev
+    - python3-pip
+    - python3-dev
     - curl
     - zip
 - name: Install global python modules

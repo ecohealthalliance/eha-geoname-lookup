@@ -1,0 +1,62 @@
+---
+- hosts: build-instance
+  become: yes
+  become_user: root
+  roles:
+    - name: init
+      tags: init
+    - name: kamaln7.swapfile
+      swapfile_size: 16GB
+      swapfile_location: "/swapfile"
+      tags: swap
+    - name: angstwad.docker_ubuntu
+      tags: docker
+    - name: elasticsearch-load
+      tags: elasticsearch-load
+    - name: lookup-api
+      main_server_port: 80
+      tags: lookup-api
+  post_tasks:
+    - name: Import log tail
+      command: docker logs --tail 50 importer-c
+      register: import_log
+      tags:
+        - checks
+        - check-import
+    - debug: var=import_log.stdout
+      tags:
+        - checks
+        - check-import
+    - name: Check indices
+      uri:
+        url: http://localhost:9200/_all
+      tags:
+        - checks
+        - check-indices
+      register: indices
+      ignore_errors: yes
+    - debug: var=indices
+      tags:
+        - checks
+        - check-indices
+    - name: Check query
+      uri:
+        url: http://localhost:9200/geonames/geoname/_search
+        method: POST
+        body: "{{test_query | to_json}}"
+      ignore_errors: yes
+      vars:
+        test_query:
+          query:
+            match_all: {}
+          size: 1
+      tags:
+        - checks
+        - check-queries
+      register: query_result
+    - debug: var=query_result
+      tags:
+        - checks
+        - check-queries
+  vars_files:
+    - secure.yml

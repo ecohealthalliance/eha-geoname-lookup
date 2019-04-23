@@ -3,7 +3,6 @@
   become: yes
   become_user: root
   vars:
-    elasticsearch_data_path: "/mnt/elasticsearch/data"
     domain_name: "geoname-lookup.eha.io"
     webroot: "/var/www"
     ssl_directory: "/etc/letsencrypt/live/{{domain_name}}"
@@ -40,6 +39,7 @@
     - name: elasticsearch-load
       tags: elasticsearch-load
     - name: lookup-api
+      api_url: "https://{{domain_name}}/api"
       tags: lookup-api
     - name: thefinn93.letsencrypt
       letsencrypt_cert_domains:
@@ -63,9 +63,6 @@
           documentroot: "{{webroot}}"
           extra_parameters: "{{apache_extra_parameters}}"
       tags: apache
-    - name: export-containers
-      tags: export
-      when: "{{ export | default(true) }}"
   post_tasks:
     - name: Import log tail
       command: docker logs --tail 50 importer-c

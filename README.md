@@ -21,7 +21,7 @@ ansible-galaxy install -r requirements.yml
 The following will deploy to geoname-lookup.eha.io
 
 ```
-ansible-playbook site.yml --vault-password-file ~/.keys/.grits_vault_password --private-key infrastructure.pem
+ansible-playbook site.yml --private-key infrastructure.pem
 ```
 
 To deploy somewhere else, replace the target address in inventory.ini and set the domain_name variable in site.yml.

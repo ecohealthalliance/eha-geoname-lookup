@@ -21,7 +21,7 @@
 - name: Start elasticsearch container
   docker_container:
     name: elasticsearch-c
-    image: elasticsearch
+    image: "elasticsearch:2.4.1"
     state: started
     restart: true
     ports:
@@ -35,7 +35,7 @@
   register: elasticsearch_ping
   until: "elasticsearch_ping.get('json')"
   retries: 6
-  delay: 10
+  delay: 12
 
 - name: Ensure geonames index exists
   ignore_errors: yes
